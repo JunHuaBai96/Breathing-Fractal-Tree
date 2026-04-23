@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Earth Day Fractal Tree</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<script>
+let leaves = [];
+let maxDepth = 11;
+let trunkLen = 140;
+
+function setup() {
+  createCanvas(windowWidth, windowHeight);
+}
+
+function draw() {
+  // Soft gradient sky
+  setGradient(0, 0, width, height, color(135, 206, 250), color(240, 248, 255));
+
+  // Ground
+  noStroke();
+  fill(40, 100, 40);
+  rect(0, height - 60, width, 60);
+
+  // Tree
+  push();
+  translate(width / 2, height - 60);
+  // Gentle overall sway for the whole tree
+  rotate(sin(millis() * 0.0008) * 0.02);
+  drawBranch(trunkLen, maxDepth, 14);
+  pop();
+
+  // Falling leaves
+  for (let i = leaves.length - 1; i >= 0; i--) {
+    leaves[i].update();
+    leaves[i].display();
+    if (leaves[i].isDead()) {
+      leaves.splice(i, 1);
+    }
+  }
+}
+
+function drawBranch(len, depth, sw) {
+  // Cap recursion
+  if (depth <= 0) {
+    // Draw a bud at the tip
+    noStroke();
+    fill(80, 200, 80, 180);
+    ellipse(0, 0, 6, 10);
+    return;
+  }
+
+  // Color: brown trunk → green tips
+  let t = map(depth, maxDepth, 1, 0, 1);
+  let branchCol = lerpColor(color(101, 67, 33), color(50, 180, 60), t);
+  
+  stroke(branchCol);
+  strokeWeight(sw);
+  line(0, 0, 0, -len);
+
+  translate(0, -len);
+
+  // Animated branch angle using sin(millis())
+  // Different depths sway at different phases for organic movement
+  let baseAngle = PI / 5;
+  let sway = sin(millis() * 0.002 + depth * 0.8) * 0.04;
+  let angle = baseAngle + sway;
+
+  // Taper factor
+  let nextLen = len * 0.72;
+  let nextSw = sw * 0.68;
+
+  // Right branch
+  push();
+  rotate(angle);
+  drawBranch(nextLen, depth - 1, nextSw);
+  pop();
+
+  // Left branch
+  push();
+  rotate(-angle);
+  drawBranch(nextLen, depth - 1, nextSw);
+  pop();
+
+  // Occasional middle branch for fullness (only at mid-depths)
+  if (depth < maxDepth - 2 && depth > 3) {
+    push();
+    rotate(sway * 0.5);
+    drawBranch(nextLen * 0.85, depth - 1, nextSw * 0.8);
+    pop();
+  }
+}
+
+function mousePressed() {
+  // Spawn a gentle shower of leaves from the canopy area
+  for (let i = 0; i < 20; i++) {
+    // Approximate canopy zone above the tree
+    let x = random(width / 2 - 180, width / 2 + 180);
+    let y = random(height / 2 - 80, height - 200);
+    leaves.push(new Leaf(x, y));
+  }
+}
+
+class Leaf {
+  constructor(x, y) {
+    this.pos = createVector(x, y);
+    this.vel = createVector(random(-0.5, 0.5), random(0.5, 1.5));
+    this.acc = createVector(0, 0.015);
+    this.angle = random(TWO_PI);
+    this.spin = random(-0.08, 0.08);
+    this.size = random(6, 14);
+    this.life = 255;
+    // Autumn-to-green palette
+    let leafColors = [
+      color(255, 165, 0),   // orange
+      color(255, 215, 0),   // gold
+      color(50, 205, 50),   // lime
+      color(34, 139, 34)    // forest green
+    ];
+    this.col = random(leafColors);
+  }
+
+  update() {
+    this.vel.add(this.acc);
+    // Wind drift
+    this.vel.x += sin(millis() * 0.003 + this.pos.y * 0.01) * 0.008;
+    this.pos.add(this.vel);
+    this.angle += this.spin;
+    this.life -= 1.5;
+  }
+
+  display() {
+    push();
+    translate(this.pos.x, this.pos.y);
+    rotate(this.angle);
+    noStroke();
+    fill(red(this.col), green(this.col), blue(this.col), this.life);
+    
+    // Leaf shape
+    beginShape();
+    vertex(0, -this.size / 2);
+    bezierVertex(this.size / 2, -this.size / 4, this.size / 2, this.size / 4, 0, this.size / 2);
+    bezierVertex(-this.size / 2, this.size / 4, -this.size / 2, -this.size / 4, 0, -this.size / 2);
+    endShape(CLOSE);
+    
+    // Leaf vein
+    stroke(0, 50);
+    strokeWeight(0.5);
+    line(0, -this.size / 3, 0, this.size / 3);
+    pop();
+  }
+
+  isDead() {
+    return this.life <= 0 || this.pos.y > height + 20;
+  }
+}
+
+function setGradient(x, y, w, h, c1, c2) {
+  noFill();
+  for (let i = y; i <= y + h; i += 2) {
+    let inter = map(i, y, y + h, 0, 1);
+    let c = lerpColor(c1, c2, inter);
+    stroke(c);
+    strokeWeight(2);
+    line(x, i, x + w, i);
+  }
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
+}
+</script>
+</body>
+</html>
